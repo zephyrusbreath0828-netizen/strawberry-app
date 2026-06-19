@@ -1,80 +1,35 @@
 import streamlit as st
 import google.generativeai as genai
-from PIL import Image
-import json
 
-# --- APIキーの設定 ---
+st.title("🔍 使えるAIモデル調査ツール")
+
+# APIキーの読み込み
 try:
     API_KEY = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=API_KEY)
+    st.success("APIキーの読み込みに成功しました！")
 except Exception as e:
-    st.error("APIキーが設定されていません。StreamlitのSecrets設定を確認してください。")
+    st.error("APIキーが設定されていません。")
     st.stop()
 
-# モデルの準備（名前を -latest に変更）
-model = genai.GenerativeModel('gemini-1.5-flash')
+st.write("現在、あなたのAPIキーで利用可能なモデルの一覧を取得しています...")
 
-# --- プロンプトの定義 ---
-PROMPT = """
-あなたはイチゴ栽培の専門家であり、高度な画像解析AIです。
-ユーザーから提供されたイチゴの株の画像を解析し、健康度合いや成長具合を数値化・評価してください。
-必ず以下のJSONフォーマットのみで出力してください。
+try:
+    # 利用可能なモデルの一覧を取得
+    available_models = []
+    for m in genai.list_models():
+        # 画像解析（generateContent）に対応しているモデルだけを抽出
+        if 'generateContent' in m.supported_generation_methods:
+            available_models.append(m.name)
+    
+    if available_models:
+        st.write("### ✅ 利用可能なモデル一覧")
+        for model_name in available_models:
+            st.code(model_name)
+        
+        st.info("上記の中に `models/gemini-1.5-flash` や `models/gemini-1.5-pro` などがあるか確認してください。")
+    else:
+        st.warning("画像解析に使えるモデルが見つかりませんでした。APIキーの権限などを確認してください。")
 
-{
-  "health_score": 85,
-  "growth_stage": "開花期 (Flowering)",
-  "growth_score": 90,
-  "issues_detected": ["葉の先端にわずかな枯れ"],
-  "advice": "順調に成長しています。"
-}
-"""
-
-# --- WebアプリのUI部分 ---
-st.title("🍓 イチゴ健康度チェックアプリ")
-st.write("イチゴの写真をアップロードすると、AIが健康度や成長具合を判定します！")
-
-uploaded_file = st.file_uploader("イチゴの画像を選択してください", type=["jpg", "jpeg", "png"])
-
-if uploaded_file is not None:
-    image = Image.open(uploaded_file)
-    st.image(image, caption="アップロードされた画像", use_column_width=True)
-
-    if st.button("AIで判定する"):
-        with st.spinner("AIが画像を解析中です..."):
-            try:
-                # Gemini APIに画像とプロンプトを送信
-                response = model.generate_content(
-                    [PROMPT, image],
-                    generation_config=genai.types.GenerationConfig(
-                        response_mime_type="application/json",
-                    )
-                )
-
-                # 結果をJSONとして読み込む
-                result_json = json.loads(response.text)
-
-                # 結果を画面に表示
-                st.subheader("📊 判定結果")
-
-                col1, col2 = st.columns(2)
-                col1.metric("健康度 (Health Score)", f"{result_json.get('health_score', 0)} / 100")
-                col2.metric("成長具合 (Growth Score)", f"{result_json.get('growth_score', 0)} / 100")
-
-                st.write(f"**成長段階:** {result_json.get('growth_stage', '不明')}")
-
-                st.write("**検出された異常:**")
-                issues = result_json.get('issues_detected', [])
-                if issues:
-                    for issue in issues:
-                        st.write(f"- {issue}")
-                else:
-                    st.write("- なし（健康です！）")
-
-                st.info(f"**💡 アドバイス:**\n{result_json.get('advice', 'アドバイスはありません。')}")
-
-            except Exception as e:
-                st.error(f"エラーが発生しました: {e}")
-                # responseが存在する場合のみ中身を表示するよう修正
-                if 'response' in locals():
-                    st.write("AIの出力結果:")
-                    st.code(response.text)
+except Exception as e:
+    st.error(f"モデル一覧の取得中にエラーが発生しました: {e}")
