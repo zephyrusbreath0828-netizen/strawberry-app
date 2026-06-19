@@ -3,8 +3,7 @@ import google.generativeai as genai
 from PIL import Image
 import json
 
-# --- APIキーの設定 (Streamlit Cloud用) ---
-# st.secretsを使って、安全にAPIキーを読み込みます
+# --- APIキーの設定 ---
 try:
     API_KEY = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=API_KEY)
@@ -12,8 +11,8 @@ except Exception as e:
     st.error("APIキーが設定されていません。StreamlitのSecrets設定を確認してください。")
     st.stop()
 
-# モデルの準備
-model = genai.GenerativeModel('gemini-1.5-flash')
+# モデルの準備（名前を -latest に変更）
+model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 # --- プロンプトの定義 ---
 PROMPT = """
@@ -43,7 +42,7 @@ if uploaded_file is not None:
     if st.button("AIで判定する"):
         with st.spinner("AIが画像を解析中です..."):
             try:
-                # Gemini APIに画像とプロンプトを送信（JSON形式を強制する設定を追加）
+                # Gemini APIに画像とプロンプトを送信
                 response = model.generate_content(
                     [PROMPT, image],
                     generation_config=genai.types.GenerationConfig(
@@ -75,5 +74,7 @@ if uploaded_file is not None:
 
             except Exception as e:
                 st.error(f"エラーが発生しました: {e}")
-                st.write("AIの出力結果:")
-                st.code(response.text) # 原因調査のためにAIの実際の出力を表示します
+                # responseが存在する場合のみ中身を表示するよう修正
+                if 'response' in locals():
+                    st.write("AIの出力結果:")
+                    st.code(response.text)
