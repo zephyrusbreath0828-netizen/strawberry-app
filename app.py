@@ -6,7 +6,7 @@ import json
 # --- APIキーの設定 (Streamlit Cloud用) ---
 # st.secretsを使って、安全にAPIキーを読み込みます
 try:
-    API_KEY = st.secrets["AQ.Ab8RN6ISs9OLmZVqKRVrQL_tUpVfuxt8P3CvdQogN_nilCUPOw"]
+    API_KEY = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=API_KEY)
 except Exception as e:
     st.error("APIキーが設定されていません。StreamlitのSecrets設定を確認してください。")
