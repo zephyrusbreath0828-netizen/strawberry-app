@@ -11,27 +11,36 @@ except Exception as e:
     st.error("APIキーが設定されていません。StreamlitのSecrets設定を確認してください。")
     st.stop()
 
-# ★ここで最新のモデル「gemini-3.5-flash」を指定します
+# モデルの指定
 model = genai.GenerativeModel('gemini-3.5-flash')
 
 # --- プロンプトの定義 ---
 PROMPT = """
 あなたはイチゴ栽培の専門家であり、高度な画像解析AIです。
-ユーザーから提供されたイチゴの株の画像を解析し、健康度合いや成長具合を数値化・評価してください。
+ユーザーから提供されたイチゴの株の画像を解析し、以下の項目について詳細な評価とコメントを行ってください。
 必ず以下のJSONフォーマットのみで出力してください。
 
 {
-  "health_score": 85,
-  "growth_stage": "開花期 (Flowering)",
-  "growth_score": 90,
-  "issues_detected": ["葉の先端にわずかな枯れ"],
-  "advice": "順調に成長しています。"
+  "overall_score": 85,
+  "growth_analysis": {
+    "vigor": "葉の茂り具合（草勢）の評価とコメント",
+    "stage": "生育ステージの判定（例：栄養成長期、開花期など）",
+    "flowers": "花の数と状態の評価",
+    "fruits": "果実の熟度や状態の評価"
+  },
+  "health_analysis": {
+    "leaf_color": "葉の色の異常（栄養障害など）の有無とコメント",
+    "disease": "病気のサイン（うどんこ病、炭疽病など）の有無とコメント",
+    "pest": "害虫の被害（食害、ハダニなど）の有無とコメント",
+    "physical_stress": "物理的なストレス（チップバーン、乾燥など）の有無とコメント"
+  },
+  "comprehensive_advice": "総合的なアドバイスや次に取るべきアクション"
 }
 """
 
 # --- WebアプリのUI部分 ---
-st.title("🍓 イチゴ健康度チェックアプリ")
-st.write("イチゴの写真をアップロードすると、AIが健康度や成長具合を判定します！")
+st.title("🍓 イチゴの総合健康診断アプリ")
+st.write("イチゴの写真をアップロードすると、AIが成長と健康の全項目を詳細に分析します！")
 
 uploaded_file = st.file_uploader("イチゴの画像を選択してください", type=["jpg", "jpeg", "png"])
 
@@ -39,8 +48,8 @@ if uploaded_file is not None:
     image = Image.open(uploaded_file)
     st.image(image, caption="アップロードされた画像", use_column_width=True)
 
-    if st.button("AIで判定する"):
-        with st.spinner("AIが画像を解析中です..."):
+    if st.button("AIで総合診断する"):
+        with st.spinner("AIが画像を詳細に解析中です..."):
             try:
                 # Gemini APIに画像とプロンプトを送信
                 response = model.generate_content(
@@ -51,29 +60,40 @@ if uploaded_file is not None:
                 )
 
                 # 結果をJSONとして読み込む
-                result_json = json.loads(response.text)
+                result = json.loads(response.text)
 
-                # 結果を画面に表示
-                st.subheader("📊 判定結果")
+                # --- 結果の表示 ---
+                st.header("📊 診断結果")
+                
+                # 総合スコア
+                st.metric("総合健康スコア", f"{result.get('overall_score', 0)} / 100")
 
-                col1, col2 = st.columns(2)
-                col1.metric("健康度 (Health Score)", f"{result_json.get('health_score', 0)} / 100")
-                col2.metric("成長具合 (Growth Score)", f"{result_json.get('growth_score', 0)} / 100")
+                # 成長度合いの表示
+                st.subheader("🌱 成長度合いの評価")
+                growth = result.get("growth_analysis", {})
+                st.write(f"**生育ステージ:** {growth.get('stage', '不明')}")
+                st.write(f"**葉の茂り具合 (草勢):** {growth.get('vigor', '不明')}")
+                st.write(f"**花の状態:** {growth.get('flowers', '不明')}")
+                st.write(f"**果実の状態:** {growth.get('fruits', '不明')}")
 
-                st.write(f"**成長段階:** {result_json.get('growth_stage', '不明')}")
+                st.divider()
 
-                st.write("**検出された異常:**")
-                issues = result_json.get('issues_detected', [])
-                if issues:
-                    for issue in issues:
-                        st.write(f"- {issue}")
-                else:
-                    st.write("- なし（健康です！）")
+                # 健康度合いの表示
+                st.subheader("🩺 健康度合いの評価")
+                health = result.get("health_analysis", {})
+                st.write(f"**葉の色 (栄養状態):** {health.get('leaf_color', '不明')}")
+                st.write(f"**病気のサイン:** {health.get('disease', '不明')}")
+                st.write(f"**害虫の被害:** {health.get('pest', '不明')}")
+                st.write(f"**物理的ストレス:** {health.get('physical_stress', '不明')}")
 
-                st.info(f"**💡 アドバイス:**\n{result_json.get('advice', 'アドバイスはありません。')}")
+                st.divider()
+
+                # 総合アドバイス
+                st.subheader("💡 総合アドバイス")
+                st.info(result.get("comprehensive_advice", "アドバイスはありません。"))
 
             except Exception as e:
                 st.error(f"エラーが発生しました: {e}")
                 if 'response' in locals():
-                    st.write("AIの出力結果:")
+                    st.write("AIの出力結果（デバッグ用）:")
                     st.code(response.text)
