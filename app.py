@@ -12,7 +12,7 @@ except Exception as e:
     st.stop()
 
 # モデルの指定
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-3.5-flash')
 
 # --- プロンプトの定義 ---
 PROMPT = """
